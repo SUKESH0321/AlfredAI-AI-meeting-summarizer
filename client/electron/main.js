@@ -34,18 +34,19 @@ function terminateServer() {
 
 async function startServer() {
   const userDataPath = app.getPath('userData');
-  const env = { ...process.env };
+  const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
   env.UPLOADS_DIR = path.join(userDataPath, 'uploads');
   env.TEMP_DIR = path.join(userDataPath, 'temp');
 
-  const serverPath = isDev 
+  const serverPath = isDev
     ? path.resolve(__dirname, '../../server/index.js')
     : path.resolve(process.resourcesPath, 'server/index.js');
 
-  serverProcess = spawn('node', [serverPath], { env, stdio: 'pipe' });
+  serverProcess = spawn(process.execPath, [serverPath], { env, stdio: 'pipe' });
 
   serverProcess.stdout.on('data', (d) => console.log(`[Backend]: ${d}`));
   serverProcess.stderr.on('data', (d) => console.error(`[Backend Err]: ${d}`));
+
 
   await waitForServer('http://localhost:5000/api/health');
 }
@@ -68,7 +69,7 @@ async function createWindow() {
   if (isDev) {
     win.loadURL('http://localhost:5173');
   } else {
-    win.loadFile(path.join(__dirname, '../../dist/public/index.html'));
+    win.loadFile(path.join(__dirname, '../dist/public/index.html'));
   }
 }
 

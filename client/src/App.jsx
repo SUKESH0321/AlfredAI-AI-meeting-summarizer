@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, CalendarDays, Check, ChevronRight, CircleHelp, FileAudio, History as HistoryIcon,
   ListChecks, Mic, MoreHorizontal, Pause, Play, Search, Settings2, Sparkles, Square, Upload,
@@ -542,7 +542,11 @@ function RegisterRoute() {
 }
 
 function App() {
-  return <AuthProvider><BrowserRouter><CustomCursor /><Routes>
+  const isElectron = navigator.userAgent.toLowerCase().includes('electron');
+  const isDev = import.meta.env.DEV;
+  const RouterComponent = (isElectron && !isDev) ? HashRouter : BrowserRouter;
+
+  return <AuthProvider><RouterComponent><CustomCursor /><Routes>
     <Route path="/alfred" element={<Navigate to="/alfred/login" replace />} />
     <Route path="/alfred/login" element={<LoginRoute />} />
     <Route path="/alfred/register" element={<RegisterRoute />} />
@@ -550,7 +554,7 @@ function App() {
     <Route path="/alfred/history" element={<ProtectedRoute><DashboardApp /></ProtectedRoute>} />
     <Route path="/alfred/account" element={<ProtectedRoute><DashboardApp /></ProtectedRoute>} />
     <Route path="*" element={<Navigate to="/alfred" replace />} />
-  </Routes></BrowserRouter></AuthProvider>;
+  </Routes></RouterComponent></AuthProvider>;
 }
 
 export default App;

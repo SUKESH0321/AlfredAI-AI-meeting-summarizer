@@ -2,6 +2,8 @@ import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStaticRaw from 'ffprobe-static';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,9 +14,9 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
-// Configurable via ENV, or fallback to natively installed PATH commands
-const getFfmpegPath = () => process.env.FFMPEG_PATH || 'ffmpeg';
-const getFfprobePath = () => process.env.FFPROBE_PATH || 'ffprobe';
+// Configurable via ENV, statically bundled if missing, or fallback to natively installed PATH commands
+const getFfmpegPath = () => process.env.FFMPEG_PATH || ffmpegStatic || 'ffmpeg';
+const getFfprobePath = () => process.env.FFPROBE_PATH || ffprobeStaticRaw.path || 'ffprobe';
 
 /**
  * Extracts and normalizes audio for the Transcription layer
