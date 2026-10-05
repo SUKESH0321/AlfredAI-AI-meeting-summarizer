@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Meeting {
+  id               String   @id
+  title            String?
+  originalFilename String   @map("original_filename")
+  storedFilename   String   @map("stored_filename")
+  mediaPath        String   @map("media_path")
+  mimeType         String   @map("mime_type")
+  duration         Float?
+  status           String   @default("uploaded")
+  errorMessage     String?  @map("error_message")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  userId           String?  @map("user_id")
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transcript       Transcript?
+  insights         MeetingInsight?
+  actionItems      ActionItem[]
+
+  @@map("meetings")
+  @@index([createdAt])
+}
+
+model Transcript {
+  id        String   @id @default(uuid())
+  meetingId String   @unique @map("meeting_id")
+  text      String
+  language  String?
+  duration  Float?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("transcripts")
+  @@index([meetingId])
+}
+
+model MeetingInsight {
+  id              String   @id @default(uuid())
+  meetingId       String   @unique @map("meeting_id")
+  summary         String?
+  keyPoints       Json?    @map("key_points")
+  decisions       Json?
+  importantPeople Json?    @map("important_people")
+  nextMeeting     Json?    @map("next_meeting")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  meeting         Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_insights")
+  @@index([meetingId])
+}
+
+model ActionItem {
+  id        String   @id @default(uuid())
+  meetingId String   @map("meeting_id")
+  task      String
+  assignee  String?
+  deadline  String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@map("action_items")
+  @@index([meetingId])
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  meetings     Meeting[]
+
+  @@map("users")
+}
