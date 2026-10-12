@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
 import http from 'http';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,19 +11,34 @@ const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 let serverProcess = null;
 
-function waitForServer(url, timeout = 30000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const poll = () => {
-      http.get(url, (res) => {
-        if (res.statusCode === 200) { resolve(); } else { retry(); }
-      }).on('error', retry);
-    };
-    const retry = () => {
-      if (Date.now() - start > timeout) { reject(new Error("Server start timeout")); } else { setTimeout(poll, 1000); }
-    };
-    poll();
+const HOST = '127.0.0.1';
+const PORT = 5000;
+const SERVER_URL = `http://${HOST}:${PORT}`;
+const HEALTH_URL = `${SERVER_URL}/api/health`;
+
+let serverOutput = '';
+let serverExit = null;
+
+function pingHealth(url) {
+  return new Promise((resolve) => {
+    const req = http.get(url, (res) => { res.resume(); resolve(res.statusCode === 200); });
+    req.on('error', () => resolve(false));
+    req.setTimeout(2000, () => { req.destroy(); resolve(false); });
   });
+}
+
+async function waitForServer(url, timeout = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (serverExit) throw new Error(`Backend exited (${serverExit}) before becoming healthy.
+
+${serverOutput.slice(-1500)}`);
+    if (await pingHealth(url)) return;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`Backend did not answer ${url} within ${timeout / 1000}s.
+
+${serverOutput.slice(-1500)}`);
 }
 
 function terminateServer() {
@@ -34,21 +50,42 @@ function terminateServer() {
 
 async function startServer() {
   const userDataPath = app.getPath('userData');
-  const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
-  env.UPLOADS_DIR = path.join(userDataPath, 'uploads');
-  env.TEMP_DIR = path.join(userDataPath, 'temp');
+  const uploadsDir = path.join(userDataPath, 'uploads');
+  const tempDir = path.join(userDataPath, 'temp');
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.mkdirSync(tempDir, { recursive: true });
 
-  const serverPath = isDev
-    ? path.resolve(__dirname, '../../server/index.js')
-    : path.resolve(process.resourcesPath, 'server/index.js');
+  const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1', HOST, PORT: String(PORT) };
+  env.UPLOADS_DIR = uploadsDir;
+  env.TEMP_DIR = tempDir;
 
-  serverProcess = spawn(process.execPath, [serverPath], { env, stdio: 'pipe' });
+  const serverDir = isDev
+    ? path.resolve(__dirname, '../../server')
+    : path.join(process.resourcesPath, 'server');
 
-  serverProcess.stdout.on('data', (d) => console.log(`[Backend]: ${d}`));
-  serverProcess.stderr.on('data', (d) => console.error(`[Backend Err]: ${d}`));
+  if (!isDev) {
+    // Secrets are never bundled: production config lives in <userData>/.env
+    const envFile = path.join(userDataPath, '.env');
+    if (!fs.existsSync(envFile)) {
+      throw new Error(`Configuration file not found:
+${envFile}
 
+Create it with DATABASE_URL, JWT_SECRET and GROQ_API_KEY (see server/.env.example).`);
+    }
+    env.ENV_FILE = envFile;
+    env.STATIC_DIR = path.join(__dirname, '../dist/public');
+  }
 
-  await waitForServer('http://localhost:5000/api/health');
+  // process.execPath is Electron itself; with ELECTRON_RUN_AS_NODE it acts as a bundled Node runtime.
+  serverProcess = spawn(process.execPath, [path.join(serverDir, 'index.js')], { env, cwd: serverDir, stdio: 'pipe' });
+  serverProcess.on('error', (e) => { serverExit = `spawn error: ${e.message}`; });
+  serverProcess.on('exit', (code, sig) => { serverExit = `code ${code}${sig ? `, signal ${sig}` : ''}`; });
+
+  const onData = (tag) => (d) => { serverOutput += d; console.log(`[${tag}]: ${d}`); };
+  serverProcess.stdout.on('data', onData('Backend'));
+  serverProcess.stderr.on('data', onData('Backend Err'));
+
+  await waitForServer(HEALTH_URL);
 }
 
 async function createWindow() {
@@ -61,7 +98,8 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, 'preload.js')
-    }
+    },
+    icon: path.join(__dirname, process.env.NODE_ENV === 'development' ? '../public/icon.ico' : '../dist/public/icon.ico')
   });
 
   win.maximize();
@@ -69,11 +107,12 @@ async function createWindow() {
   if (isDev) {
     win.loadURL('http://localhost:5173');
   } else {
-    win.loadFile(path.join(__dirname, '../dist/public/index.html'));
+    win.loadURL(SERVER_URL);
   }
 }
 
 app.whenReady().then(async () => {
+  app.setAppUserModelId("com.alfredai.app");
   try {
     await startServer();
     createWindow();

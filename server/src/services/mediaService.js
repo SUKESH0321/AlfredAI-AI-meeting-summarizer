@@ -15,8 +15,9 @@ if (!fs.existsSync(tempDir)) {
 }
 
 // Configurable via ENV, statically bundled if missing, or fallback to natively installed PATH commands
-const getFfmpegPath = () => process.env.FFMPEG_PATH || ffmpegStatic || 'ffmpeg';
-const getFfprobePath = () => process.env.FFPROBE_PATH || ffprobeStaticRaw.path || 'ffprobe';
+const existing = (p) => (p && fs.existsSync(p) ? p : null);
+const getFfmpegPath = () => existing(process.env.FFMPEG_PATH) || ffmpegStatic || 'ffmpeg';
+const getFfprobePath = () => existing(process.env.FFPROBE_PATH) || ffprobeStaticRaw.path || 'ffprobe';
 
 /**
  * Extracts and normalizes audio for the Transcription layer

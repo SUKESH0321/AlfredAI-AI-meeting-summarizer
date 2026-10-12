@@ -266,7 +266,7 @@ function DashboardApp() {
     <div className={`app-shell ${isDragging ? "is-dragging" : ""}`} onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={(event) => { if (event.currentTarget === event.target) setIsDragging(false); }} onDrop={handleDrop}>
       <header className="topbar">
         <button className="brand" onClick={() => navigate("home")} aria-label="Go to AlfredAI home">
-          <span className="brand-mark"><Sparkles size={15} strokeWidth={2.3} /></span><span>AlfredAI</span>
+          <span className="brand-mark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/logo.png" alt="AlfredAI" style={{ width: 'var(--logo-size, 20px)', height: 'var(--logo-size, 20px)', objectFit: 'contain' }} /></span><span>AlfredAI</span>
         </button>
         <div className="topbar-right"><span className="sync-status"><span className="sync-dot" /> Local workspace</span><button className="icon-button tooltip-trigger" data-tooltip="Help" onClick={() => setToast("Help center is coming soon.")} aria-label="Help"><CircleHelp size={18} /></button><button className="avatar-button" onClick={() => navigate("account")} aria-label="Open account">{initials}</button></div>
       </header>
@@ -411,7 +411,7 @@ function MeetingView({ meeting, onBack, onToast, onDelete }) {
     return `${m}:${s}`;
   };
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? window.location.origin : "http://localhost:5000");
   const mediaUrl = `${API_URL}/api/meetings/${meeting.id}/media`;
 
   return <section className="meeting-page page-enter">

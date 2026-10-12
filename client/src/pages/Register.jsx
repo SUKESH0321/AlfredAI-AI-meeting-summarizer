@@ -57,7 +57,7 @@ export default function Register() {
       <FloatingObjects focus={focus} pressed={pressed} />
       <div className="login-glow" />
       <header className="login-brand">
-        <span className="brand-mark"><Sparkles size={15} /></span>
+        <span className="brand-mark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><img src="/logo.png" alt="AlfredAI" style={{ width: 'var(--logo-size, 20px)', height: 'var(--logo-size, 20px)', objectFit: 'contain' }} /></span>
         <span>AlfredAI</span>
         <span className="login-brand-caption">private workspace</span>
       </header>
